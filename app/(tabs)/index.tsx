@@ -1,74 +1,367 @@
-import { Image, StyleSheet, Platform } from 'react-native';
+import { CameraView, Camera } from 'expo-camera';
+import { useState, useRef, useEffect } from 'react';
+import { Button, StyleSheet, Text, View, PanResponder, Dimensions, TouchableOpacity, Image } from 'react-native';
+import * as MediaLibrary from 'expo-media-library';
+import * as ImageManipulator from 'expo-image-manipulator';
+import ThreeDotLoader from '@/components/svgs/ThreeDotLoader';
 
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+export default function ScanScreen() {
+  const screenWidth = Dimensions.get('window').width;
+  const screenHeight = Dimensions.get('window').height;
 
-export default function HomeScreen() {
+  const [permission, requestPermission] = useState({ granted: false });
+  const [mediaLibraryPermission, requestMediaLibraryPermission] = useState({ granted: false });
+  const [capturedImage, setCapturedImage] = useState<ImageManipulator.ImageResult | null>(null);
+  const [processingPhoto, setProcessingPhoto] = useState(false);
+  const [cameraLayout, setCameraLayout] = useState({ width: screenWidth, height: screenHeight });
+
+  const [frameSize, setFrameSize] = useState({
+    width: 200,
+    height: 200,
+  });
+  const [framePosition, setFramePosition] = useState({
+    x: (screenWidth - 200) / 2,
+    y: (screenHeight - 200) / 2,
+  });
+
+  const cameraRef = useRef<Camera | null>(null);
+
+  // Pan responder for resizing
+  const resizePanResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onPanResponderGrant: () => {
+      // No need to save initial position as we'll use gestureState.dx and dy
+    },
+    onPanResponderMove: (_, gestureState) => {
+      // Update frame size based on gesture movement
+      setFrameSize({
+        width: Math.max(50, frameSize.width + gestureState.dx),
+        height: Math.max(50, frameSize.height + gestureState.dy),
+      });
+    },
+  });
+
+  // Pan responder for moving the frame
+  const movePanResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onPanResponderMove: (_, gestureState) => {
+      setFramePosition({
+        x: Math.max(0, Math.min(screenWidth - frameSize.width, framePosition.x + gestureState.dx)),
+        y: Math.max(0, Math.min(screenHeight - frameSize.height, framePosition.y + gestureState.dy)),
+      });
+    },
+  });
+
+  const checkPermissions = async () => {
+    const cameraPermission = await Camera.requestCameraPermissionsAsync();
+    const mediaPermission = await MediaLibrary.requestPermissionsAsync();
+    requestPermission(cameraPermission);
+    requestMediaLibraryPermission(mediaPermission);
+  };
+
+  useEffect(() => {
+    checkPermissions();
+  }, []);
+
+  /**
+   * Captures a photo using the camera when it's available and not processing a photo.
+   * The photo is then cropped based on the frame's position and size, considering
+   * layout-to-photo aspect ratio differences. The cropped image is stored for further use.
+   * 
+   * Steps:
+   * 1. Ensures the camera is ready and not currently processing another photo.
+   * 2. Captures a photo with quality set to maximum.
+   * 3. Compares layout and photo aspect ratios to determine any overflow.
+   * 4. Calculates crop parameters based on the frame position and size.
+   * 5. Crops the captured photo to the specified frame and stores it.
+   * 
+   * Handles any errors during the process and ensures the `processingPhoto` state
+   * is reset after attempting to take a photo.
+   */
+  const takePicture = async () => {
+    if (cameraRef.current && !processingPhoto) {
+      setProcessingPhoto(true);
+      try {
+        const photo = await cameraRef.current.takePictureAsync({ quality: 1 });
+
+        const layoutAspectRatio = cameraLayout.width / cameraLayout.height;
+        const photoAspectRatio = photo.width / photo.height;
+
+        let offsetX = 0;
+        let adjustedWidthRatio = photo.width / cameraLayout.width;
+
+        // Check if the photo is wider than the preview
+        if (photoAspectRatio > layoutAspectRatio) {
+          // Real image is wider — we need to calculate the invisible overflow on the sides
+          const visibleWidth = photo.height * layoutAspectRatio; // width visible in preview
+          const excessWidth = photo.width - visibleWidth;
+          offsetX = excessWidth / 2;
+
+          adjustedWidthRatio = visibleWidth / cameraLayout.width;
+        }
+
+
+        // Calculate crop parameters
+        // We need to account for possible aspect ratio differences between
+        // the view and the actual camera image
+        // const widthRatio = photo.width / cameraLayout.width;
+        const heightRatio = photo.height / cameraLayout.height;
+
+        const cropRegion = {
+          originX: offsetX + framePosition.x * adjustedWidthRatio,
+          originY: framePosition.y * heightRatio,
+          width: frameSize.width * adjustedWidthRatio,
+          height: frameSize.height * heightRatio,
+        };
+
+        // Crop the image to the frame area
+        const manipResult = await ImageManipulator.manipulateAsync(
+          photo.uri,
+          [
+            {
+              crop: cropRegion
+            }
+          ],
+          { compress: 1, format: ImageManipulator.SaveFormat.JPEG }
+        );
+
+        setCapturedImage(manipResult);
+      } catch (error) {
+        console.error("Error taking picture:", error);
+      } finally {
+        setProcessingPhoto(false);
+      }
+    }
+  };
+
+  const saveImage = async () => {
+    if (capturedImage && mediaLibraryPermission.granted) {
+      try {
+        const asset = await MediaLibrary.createAssetAsync(capturedImage.uri);
+        await MediaLibrary.createAlbumAsync("CameraApp", asset, false);
+        alert("Image saved to gallery!");
+        setCapturedImage(null); // Reset to continue taking photos
+      } catch (error) {
+        console.error("Error saving image:", error);
+        alert("Failed to save image");
+      }
+    } else if (!mediaLibraryPermission.granted) {
+      alert("Media library permission is required to save images");
+      requestMediaLibraryPermission(mediaLibraryPermission);
+    }
+  };
+
+  const retakePicture = () => {
+    setCapturedImage(null);
+  };
+
+  if (!permission?.granted) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.message}>We need your permission to show the camera</Text>
+        <Button onPress={checkPermissions} title="Grant permissions" />
+      </View>
+    );
+  }
+
+  if (capturedImage) {
+    return (
+      <View style={styles.container}>
+        <Image source={{ uri: capturedImage.uri }} style={styles.previewImage} />
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity style={styles.button} onPress={retakePicture}>
+            <Text style={styles.buttonText}>Retake</Text>
+          </TouchableOpacity>
+          {/* <TouchableOpacity style={[styles.button, styles.saveButton]} onPress={saveImage}>
+            <Text style={styles.buttonText}>Save</Text>
+          </TouchableOpacity> */}
+        </View>
+      </View>
+    );
+  }
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
+    <View style={styles.container}>
+      <CameraView
+        style={styles.camera}
+        facing="back"
+        ref={cameraRef}
+        onLayout={(event) => {
+          const { width, height } = event.nativeEvent.layout;
+          setCameraLayout({ width, height });
+        }}
+      >
+        {/* Top overlay */}
+        <View
+          style={[
+            styles.overlay,
+            {
+              top: 0,
+              left: 0,
+              right: 0,
+              height: framePosition.y
+            }
+          ]}
         />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12'
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          Tap the Explore tab to learn more about what's included in this starter app.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          When you're ready, run{' '}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+
+        {/* Left overlay */}
+        <View
+          style={[
+            styles.overlay,
+            {
+              top: framePosition.y,
+              left: 0,
+              width: framePosition.x,
+              height: frameSize.height
+            }
+          ]}
+        />
+
+        {/* Right overlay */}
+        <View
+          style={[
+            styles.overlay,
+            {
+              top: framePosition.y,
+              left: framePosition.x + frameSize.width,
+              right: 0,
+              height: frameSize.height
+            }
+          ]}
+        />
+
+        {/* Bottom overlay */}
+        <View
+          style={[
+            styles.overlay,
+            {
+              top: framePosition.y + frameSize.height,
+              left: 0,
+              right: 0,
+              bottom: 0
+            }
+          ]}
+        />
+
+        {/* Resizable frame */}
+        <View
+          {...movePanResponder.panHandlers}
+          style={[
+            styles.frame,
+            {
+              width: frameSize.width,
+              height: frameSize.height,
+              left: framePosition.x,
+              top: framePosition.y,
+            },
+          ]}
+        >
+          {/* Resize handle in bottom right corner */}
+          <View
+            style={styles.resizeHandle}
+            {...resizePanResponder.panHandlers}
+          />
+        </View>
+
+        {/* Capture button */}
+        <View style={styles.captureButtonContainer}>
+          <TouchableOpacity
+            style={styles.captureButton}
+            onPress={takePicture}
+            disabled={processingPhoto}
+          >
+            {processingPhoto ? (<ThreeDotLoader />) : (
+              <View style={styles.captureButtonInner} />
+            )}
+          </TouchableOpacity>
+        </View>
+      </CameraView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
+    justifyContent: 'center',
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  message: {
+    textAlign: 'center',
+    paddingBottom: 10,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
+  camera: {
+    flex: 1,
+  },
+  frame: {
+    borderWidth: 2,
+    borderColor: 'white',
     position: 'absolute',
+    zIndex: 2,
   },
+  overlay: {
+    position: 'absolute',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)', // Semi-transparent black overlay
+    zIndex: 1,
+  },
+  resizeHandle: {
+    position: 'absolute',
+    bottom: -15,
+    right: -15,
+    width: 30,
+    height: 30,
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    borderRadius: 15,
+    zIndex: 3,
+  },
+  captureButtonContainer: {
+    position: 'absolute',
+    bottom: 30,
+    alignSelf: 'center',
+    zIndex: 3,
+  },
+  captureButton: {
+    display: 'flex',
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  captureButtonInner: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'white',
+  },
+  captureButtonText: {
+    color: 'white',
+    textAlign: 'center',
+  },
+  previewImage: {
+    flex: 1,
+    height: '100%',
+    resizeMode: 'contain',
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    padding: 20,
+    backgroundColor: 'black',
+  },
+  button: {
+    padding: 15,
+    borderRadius: 10,
+    backgroundColor: '#333',
+    width: '45%',
+    alignItems: 'center',
+  },
+  saveButton: {
+    backgroundColor: '#4CAF50',
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  }
 });
