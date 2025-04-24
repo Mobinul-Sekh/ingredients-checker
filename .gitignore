@@ -2,6 +2,7 @@
 
 # dependencies
 node_modules/
+.vscode/
 
 # Expo
 .expo/
@@ -38,3 +39,9 @@ yarn-error.*
 app-example
 android
 ios
+ENVs.ts
+
+# ignores for fastapi server
+server/venv
+server/.env
+server/__pycache__

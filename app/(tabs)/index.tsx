@@ -4,6 +4,9 @@ import { Button, StyleSheet, Text, View, PanResponder, Dimensions, TouchableOpac
 import * as MediaLibrary from 'expo-media-library';
 import * as ImageManipulator from 'expo-image-manipulator';
 import ThreeDotLoader from '@/components/svgs/ThreeDotLoader';
+import * as FileSystem from 'expo-file-system';
+import { BACKEND_URL } from '@/constants/ENVs';
+import { useNavigation, StackActions } from '@react-navigation/native';
 
 export default function ScanScreen() {
   const screenWidth = Dimensions.get('window').width;
@@ -14,6 +17,8 @@ export default function ScanScreen() {
   const [capturedImage, setCapturedImage] = useState<ImageManipulator.ImageResult | null>(null);
   const [processingPhoto, setProcessingPhoto] = useState(false);
   const [cameraLayout, setCameraLayout] = useState({ width: screenWidth, height: screenHeight });
+
+  const navigation = useNavigation();
 
   const [frameSize, setFrameSize] = useState({
     width: 200,
@@ -151,6 +156,29 @@ export default function ScanScreen() {
     }
   };
 
+  const fetchIngredientAffects = async (image: string) => {
+    const imageBase64 = await FileSystem.readAsStringAsync(image, { encoding: FileSystem.EncodingType.Base64 });
+    try {
+      const response = await fetch(`${BACKEND_URL}/analyze-ingredients-affects`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ image: imageBase64 }),
+      });
+      const responseData = await response.json();
+      
+      if (responseData.success) {
+        console.log('\n\n','='.repeat(120), '\n');
+        console.log('response data -> ', responseData.data);
+        console.log('\n','='.repeat(120), '\n\n');
+        navigation.dispatch(StackActions.push('ingredient', { ingredients: JSON.parse(responseData.data) }));
+      }
+    } catch (error) {
+      console.error("Error calling OCR API:", error);
+    }
+  }
+
   const retakePicture = () => {
     setCapturedImage(null);
   };
@@ -172,9 +200,9 @@ export default function ScanScreen() {
           <TouchableOpacity style={styles.button} onPress={retakePicture}>
             <Text style={styles.buttonText}>Retake</Text>
           </TouchableOpacity>
-          {/* <TouchableOpacity style={[styles.button, styles.saveButton]} onPress={saveImage}>
-            <Text style={styles.buttonText}>Save</Text>
-          </TouchableOpacity> */}
+          <TouchableOpacity style={[styles.button, styles.saveButton]} onPress={() => fetchIngredientAffects(capturedImage.uri)}>
+            <Text style={styles.buttonText}>Analyze</Text>
+          </TouchableOpacity>
         </View>
       </View>
     );
