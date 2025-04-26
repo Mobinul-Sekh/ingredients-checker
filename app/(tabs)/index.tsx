@@ -5,7 +5,7 @@ import * as MediaLibrary from 'expo-media-library';
 import * as ImageManipulator from 'expo-image-manipulator';
 import ThreeDotLoader from '@/components/svgs/ThreeDotLoader';
 import * as FileSystem from 'expo-file-system';
-import { BACKEND_URL } from '@/constants/ENVs';
+import { BACKEND_URL } from '../../constants/ENVs';
 import { useNavigation, StackActions } from '@react-navigation/native';
 
 export default function ScanScreen() {

@@ -18,7 +18,11 @@ const IngredientCard = ({ data }: { data: Record<string, any> }) => {
 
       {expanded && (
         <View style={styles.details}>
-          <Section title="Effects:" content={data.effects} />
+          <Text style={styles.sectionTitle}>Effect:</Text>
+          <View style={{ marginLeft: 10 }}>
+            <Section title="Positive:" content={data.effects.positive}/>
+            <Section title="Negative:" content={data.effects.negative} />
+          </View>
           <Section title="Nutrition:" content={data.nutrition} />
           <Section title="Statistics:" content={data.statistics} />
           <Section title="Regulations:" content={data.regulations} />
