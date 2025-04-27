@@ -139,6 +139,7 @@ export default function ScanScreen() {
     }
   };
 
+  // TODO: will think later whether to add this feature or not
   const saveImage = async () => {
     if (capturedImage && mediaLibraryPermission.granted) {
       try {
@@ -156,7 +157,7 @@ export default function ScanScreen() {
     }
   };
 
-  const fetchIngredientAffects = async (image: string) => {
+  const postAnalysisRequest = async (image: string) => {
     const imageBase64 = await FileSystem.readAsStringAsync(image, { encoding: FileSystem.EncodingType.Base64 });
     try {
       const response = await fetch(`${BACKEND_URL}/analyze-ingredients-affects`, {
@@ -169,14 +170,39 @@ export default function ScanScreen() {
       const responseData = await response.json();
       
       if (responseData.success) {
-        console.log('\n\n','='.repeat(120), '\n');
-        console.log('response data -> ', responseData.data);
-        console.log('\n','='.repeat(120), '\n\n');
-        navigation.dispatch(StackActions.push('ingredient', { ingredients: JSON.parse(responseData.data) }));
+        listenForAnalysisReport(responseData.task_id);
       }
     } catch (error) {
       console.error("Error calling OCR API:", error);
     }
+  }
+
+  const listenForAnalysisReport = async (currentAnalysisId: string) => {
+    const intervalId = setInterval(async () => {
+      try {
+        console.log("Current analysis ID:", currentAnalysisId);
+        const response = await fetch(`${BACKEND_URL}/get-analysis-result/${currentAnalysisId}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        })
+
+        const responseJson = await response.json();
+
+        if (responseJson.status === 'completed') {
+          clearInterval(intervalId);
+          navigation.dispatch(StackActions.push('ingredient', { ingredients: JSON.parse(responseJson.result) }));
+        } else if (responseJson.status === 'failed') {
+          console.error('Analysis failed:', responseJson);
+          clearInterval(intervalId);
+        }
+      } catch (error) {
+        console.error("Error calling OCR API:", error);
+      }
+    }, 5000);
+
+    return () => clearInterval(intervalId);
   }
 
   const retakePicture = () => {
@@ -200,7 +226,7 @@ export default function ScanScreen() {
           <TouchableOpacity style={styles.button} onPress={retakePicture}>
             <Text style={styles.buttonText}>Retake</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.button, styles.saveButton]} onPress={() => fetchIngredientAffects(capturedImage.uri)}>
+          <TouchableOpacity style={[styles.button, styles.saveButton]} onPress={() => postAnalysisRequest(capturedImage.uri)}>
             <Text style={styles.buttonText}>Analyze</Text>
           </TouchableOpacity>
         </View>
