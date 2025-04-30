@@ -7,6 +7,7 @@ import ThreeDotLoader from '@/components/svgs/ThreeDotLoader';
 import * as FileSystem from 'expo-file-system';
 import { BACKEND_URL } from '../../constants/ENVs';
 import { useNavigation, StackActions } from '@react-navigation/native';
+import LoadingScreen from '../loading';
 
 export default function ScanScreen() {
   const screenWidth = Dimensions.get('window').width;
@@ -17,6 +18,7 @@ export default function ScanScreen() {
   const [capturedImage, setCapturedImage] = useState<ImageManipulator.ImageResult | null>(null);
   const [processingPhoto, setProcessingPhoto] = useState(false);
   const [cameraLayout, setCameraLayout] = useState({ width: screenWidth, height: screenHeight });
+  const [loading, setLoading] = useState(false);
 
   const navigation = useNavigation();
 
@@ -158,8 +160,10 @@ export default function ScanScreen() {
   };
 
   const postAnalysisRequest = async (image: string) => {
+    setLoading(true);
     const imageBase64 = await FileSystem.readAsStringAsync(image, { encoding: FileSystem.EncodingType.Base64 });
     try {
+      console.log("Calling analysis API...");
       const response = await fetch(`${BACKEND_URL}/analyze-ingredients-affects`, {
         method: 'POST',
         headers: {
@@ -192,8 +196,10 @@ export default function ScanScreen() {
 
         if (responseJson.status === 'completed') {
           clearInterval(intervalId);
+          setLoading(false);
           navigation.dispatch(StackActions.push('ingredient', { ingredients: JSON.parse(responseJson.result) }));
         } else if (responseJson.status === 'failed') {
+          setLoading(false);
           console.error('Analysis failed:', responseJson);
           clearInterval(intervalId);
         }
@@ -220,6 +226,7 @@ export default function ScanScreen() {
 
   if (capturedImage) {
     return (
+      loading ? <LoadingScreen /> :
       <View style={styles.container}>
         <Image source={{ uri: capturedImage.uri }} style={styles.previewImage} />
         <View style={styles.buttonContainer}>
