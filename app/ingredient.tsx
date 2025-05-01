@@ -1,6 +1,6 @@
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
-import { useState } from 'react';
-import { useRoute } from '@react-navigation/native';
+import { useEffect, useState } from 'react';
+import { useRoute, useNavigation } from '@react-navigation/native';
 
 const IngredientCard = ({ data }: { data: Record<string, any> }) => {
   const [expanded, setExpanded] = useState(false);
@@ -20,7 +20,7 @@ const IngredientCard = ({ data }: { data: Record<string, any> }) => {
         <View style={styles.details}>
           <Text style={styles.sectionTitle}>Effect:</Text>
           <View style={{ marginLeft: 10 }}>
-            <Section title="Positive:" content={data.effects.positive}/>
+            <Section title="Positive:" content={data.effects.positive} />
             <Section title="Negative:" content={data.effects.negative} />
           </View>
           <Section title="Nutrition:" content={data.nutrition} />
@@ -43,6 +43,13 @@ const Section = ({ title, content }: { title: string; content: any }) => (
 const IngredientList = () => {
   const route = useRoute();
   const { ingredients } = route.params as { ingredients: any[] };
+  const navigation = useNavigation();
+
+  useEffect(() => {
+    navigation.setOptions({
+      title: 'Ingredient Details',
+    });
+  }, [])
 
   if (!Array.isArray(ingredients)) {
     return <Text style={{ color: 'red' }}>Invalid ingredients data</Text>;

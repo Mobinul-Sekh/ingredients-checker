@@ -29,7 +29,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Scan',
+          title: 'Photo',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="scanner" color={color} />,
         }}
       />
@@ -37,6 +37,7 @@ export default function TabLayout() {
         name="history"
         options={{
           title: 'History',
+          headerShown: true,
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="clock.arrow.2.circlepath" color={color} />,
         }}
       />

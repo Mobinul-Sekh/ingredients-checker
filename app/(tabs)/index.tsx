@@ -177,6 +177,7 @@ export default function ScanScreen() {
         listenForAnalysisReport(responseData.task_id);
       }
     } catch (error) {
+      setLoading(false);
       console.error("Error calling OCR API:", error);
     }
   }
@@ -204,7 +205,9 @@ export default function ScanScreen() {
           clearInterval(intervalId);
         }
       } catch (error) {
-        console.error("Error calling OCR API:", error);
+        setLoading(false);
+        navigation.dispatch(StackActions.push('error', { error: error }));
+        console.error("Error while fetching results:", error);
       }
     }, 5000);
 
