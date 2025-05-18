@@ -35,7 +35,11 @@ export default function TabTwoScreen() {
 
   const handleSelectHistory = (selectedHistory: any[]) => {
     try {
-      navigation.dispatch(StackActions.push('ingredient', { ingredients: selectedHistory }));
+      if (selectedHistory.length > 0) {
+        navigation.dispatch(StackActions.push('ingredient', { ingredients: selectedHistory }));
+      } else {
+        alert("No ingredients found!");
+      }
     } catch (e) {
       console.error("Error while fetching history -> ", e);
       navigation.dispatch(StackActions.push('error', { error: e }));
@@ -46,35 +50,35 @@ export default function TabTwoScreen() {
     useCallback(() => {
       fetchHistory();
     }, [])
-  );  
+  );
 
   return (
     <GestureHandlerRootView>
       <SafeAreaView>
         {/* {loading ?
           <LoadingScreen /> : */}
-          <ScrollView style={styles.scrollView}>
-            {history?.map((hist: any, idx: number) => {
-              const parsedResult = JSON.parse(hist?.result);
+        <ScrollView style={styles.scrollView}>
+          {history?.map((hist: any, idx: number) => {
+            const parsedResult = JSON.parse(hist?.result);
 
-              const ingredients = parsedResult
-                .slice(0, 3)
-                .map((item: any) => item?.ingredient)
-                .join(", ")
-                .substring(0, 70);
+            const ingredients = parsedResult
+              .slice(0, 3)
+              .map((item: any) => item?.ingredient)
+              .join(", ")
+              .substring(0, 70);
 
-              return (
-                <TouchableOpacity key={idx} style={styles.historyTitle} onPress={() => handleSelectHistory(parsedResult)}>
-                  <ThemedText style={styles.sectionTitle}>
-                    {ingredients}...
-                  </ThemedText>
-                  <ThemedText style={styles.sectionTitle}>
-                    {convertToIST(hist.created_at)}
-                  </ThemedText>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
+            return (
+              <TouchableOpacity key={idx} style={styles.historyTitle} onPress={() => handleSelectHistory(parsedResult)}>
+                <ThemedText style={styles.sectionTitle}>
+                  {ingredients}...
+                </ThemedText>
+                <ThemedText style={styles.sectionTitle}>
+                  {convertToIST(hist.created_at)}
+                </ThemedText>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
         {/* } */}
       </SafeAreaView>
     </GestureHandlerRootView>

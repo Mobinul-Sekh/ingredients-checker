@@ -198,10 +198,19 @@ export default function ScanScreen() {
         if (responseJson.status === 'completed') {
           clearInterval(intervalId);
           setLoading(false);
-          navigation.dispatch(StackActions.push('ingredient', { ingredients: JSON.parse(responseJson.result) }));
+          if (responseJson.result === "[]") {
+            alert("No ingredients found!");
+          } else {
+            if (typeof responseJson.result === "string") {
+              navigation.dispatch(StackActions.push('ingredient', { ingredients: JSON.parse(responseJson.result) }));
+            } else {
+              navigation.dispatch(StackActions.push('ingredient', { ingredients: responseJson.result }));
+            }
+          }
         } else if (responseJson.status === 'failed') {
           setLoading(false);
           console.error('Analysis failed:', responseJson);
+          alert("Analysis failed! Try again.");
           clearInterval(intervalId);
         }
       } catch (error) {

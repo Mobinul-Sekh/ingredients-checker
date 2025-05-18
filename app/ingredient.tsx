@@ -1,6 +1,7 @@
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
 import { useEffect, useState } from 'react';
 import { useRoute, useNavigation } from '@react-navigation/native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 const IngredientCard = ({ data }: { data: Record<string, any> }) => {
   const [expanded, setExpanded] = useState(false);
@@ -56,11 +57,15 @@ const IngredientList = () => {
   }
 
   return (
-    <ScrollView style={styles.scrollView}>
-      {ingredients.map((item, idx) => (
-        <IngredientCard key={idx} data={item} />
-      ))}
-    </ScrollView>
+    <GestureHandlerRootView>
+      <SafeAreaView>
+        <ScrollView style={styles.scrollView}>
+          {ingredients.map((item, idx) => (
+            <IngredientCard key={idx} data={item} />
+          ))}
+        </ScrollView>
+      </SafeAreaView>
+    </GestureHandlerRootView>
   );
 };
 
