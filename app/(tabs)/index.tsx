@@ -4,10 +4,10 @@ import { Button, StyleSheet, Text, View, PanResponder, Dimensions, TouchableOpac
 import * as MediaLibrary from 'expo-media-library';
 import * as ImageManipulator from 'expo-image-manipulator';
 import ThreeDotLoader from '@/components/svgs/ThreeDotLoader';
-import * as FileSystem from 'expo-file-system';
 import { BACKEND_URL } from '../../constants/ENVs';
 import { useNavigation, StackActions } from '@react-navigation/native';
 import LoadingScreen from '../loading';
+import * as FileSystem from 'expo-file-system/legacy';
 
 export default function ScanScreen() {
   const screenWidth = Dimensions.get('window').width;
@@ -61,9 +61,7 @@ export default function ScanScreen() {
 
   const checkPermissions = async () => {
     const cameraPermission = await Camera.requestCameraPermissionsAsync();
-    const mediaPermission = await MediaLibrary.requestPermissionsAsync();
     requestPermission(cameraPermission);
-    requestMediaLibraryPermission(mediaPermission);
   };
 
   useEffect(() => {
