@@ -8,6 +8,7 @@ import { BACKEND_URL } from '../../constants/ENVs';
 import { useNavigation, StackActions } from '@react-navigation/native';
 import LoadingScreen from '../loading';
 import * as FileSystem from 'expo-file-system/legacy';
+import { safeParseJSON } from '@/utils/jsonParser';
 
 export default function ScanScreen() {
   const screenWidth = Dimensions.get('window').width;
@@ -170,7 +171,7 @@ export default function ScanScreen() {
         body: JSON.stringify({ image: imageBase64 }),
       });
       const responseData = await response.json();
-      
+
       if (responseData.success) {
         listenForAnalysisReport(responseData.task_id);
       }
@@ -196,13 +197,14 @@ export default function ScanScreen() {
         if (responseJson.status === 'completed') {
           clearInterval(intervalId);
           setLoading(false);
-          if (responseJson.result === "[]") {
+          const parsedResult = safeParseJSON(responseJson.result);
+          if (parsedResult === "[]") {
             alert("No ingredients found!");
           } else {
-            if (typeof responseJson.result === "string") {
-              navigation.dispatch(StackActions.push('ingredient', { ingredients: JSON.parse(responseJson.result) }));
+            if (typeof parsedResult === "string") {
+              navigation.dispatch(StackActions.push('ingredient', { ingredients: JSON.parse(parsedResult) }));
             } else {
-              navigation.dispatch(StackActions.push('ingredient', { ingredients: responseJson.result }));
+              navigation.dispatch(StackActions.push('ingredient', { ingredients: parsedResult }));
             }
           }
         } else if (responseJson.status === 'failed') {
@@ -237,17 +239,17 @@ export default function ScanScreen() {
   if (capturedImage) {
     return (
       loading ? <LoadingScreen /> :
-      <View style={styles.container}>
-        <Image source={{ uri: capturedImage.uri }} style={styles.previewImage} />
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.button} onPress={retakePicture}>
-            <Text style={styles.buttonText}>Retake</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.button, styles.saveButton]} onPress={() => postAnalysisRequest(capturedImage.uri)}>
-            <Text style={styles.buttonText}>Analyze</Text>
-          </TouchableOpacity>
+        <View style={styles.container}>
+          <Image source={{ uri: capturedImage.uri }} style={styles.previewImage} />
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity style={styles.button} onPress={retakePicture}>
+              <Text style={styles.buttonText}>Retake</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.button, styles.saveButton]} onPress={() => postAnalysisRequest(capturedImage.uri)}>
+              <Text style={styles.buttonText}>Analyze</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
     );
   }
 

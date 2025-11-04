@@ -1,7 +1,9 @@
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { useEffect, useState } from 'react';
-import { useRoute, useNavigation } from '@react-navigation/native';
+import { useRoute, useNavigation, StackActions } from '@react-navigation/native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { ThemedText } from '@/components/ThemedText';
 
 const IngredientCard = ({ data }: { data: Record<string, any> }) => {
   const [expanded, setExpanded] = useState(false);
@@ -43,7 +45,7 @@ const Section = ({ title, content }: { title: string; content: any }) => (
 
 const IngredientList = () => {
   const route = useRoute();
-  const { ingredients } = route.params as { ingredients: any[] };
+  const { ingredients } = route.params as { ingredients: any };
   const navigation = useNavigation();
 
   useEffect(() => {
@@ -52,17 +54,35 @@ const IngredientList = () => {
     });
   }, [])
 
-  if (!Array.isArray(ingredients)) {
-    return <Text style={{ color: 'red' }}>Invalid ingredients data</Text>;
+  // ✅ Ensure ingredients is an array
+  let parsedIngredients: any[] = [];
+
+  if (Array.isArray(ingredients)) {
+    // already an array
+    parsedIngredients = ingredients;
+  } else if (typeof ingredients === 'string') {
+    try {
+      parsedIngredients = JSON.parse(ingredients);
+    } catch (err) {
+      console.error("Failed to parse ingredients:", err);
+      parsedIngredients = [];
+    }
+  } else {
+    console.warn("Unexpected ingredients type:", typeof ingredients);
+    parsedIngredients = [];
   }
 
   return (
     <GestureHandlerRootView>
       <SafeAreaView>
         <ScrollView style={styles.scrollView}>
-          {ingredients.map((item, idx) => (
-            <IngredientCard key={idx} data={item} />
-          ))}
+          {parsedIngredients.length > 0 ? (
+            parsedIngredients.map((item, idx) => (
+              <IngredientCard key={idx} data={item} />
+            ))
+          ) : (
+            <ThemedText>No ingredients found.</ThemedText>
+          )}
         </ScrollView>
       </SafeAreaView>
     </GestureHandlerRootView>

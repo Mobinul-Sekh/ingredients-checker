@@ -2,10 +2,10 @@ import { StyleSheet } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 
-export default function TabTwoScreen() {
+export default function ErrorScreen({errorText} : {errorText?: string}) {
   return (
     <ThemedView style={styles.viewContainer}>
-      <ThemedText style={styles.textStyle}>Some thing went wrong</ThemedText>
+      <ThemedText style={styles.textStyle}>{errorText ?? 'Some thing went wrong'}</ThemedText>
     </ThemedView>
   );
 }

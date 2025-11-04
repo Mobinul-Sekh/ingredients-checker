@@ -1,11 +1,12 @@
-import { SafeAreaView, StyleSheet, TouchableOpacity } from 'react-native';
+import { StyleSheet, TouchableOpacity } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { BACKEND_URL } from '@/constants/ENVs';
 import { GestureHandlerRootView, ScrollView } from 'react-native-gesture-handler';
 import { convertToIST } from '@/utils/dateTime';
 import { useNavigation, StackActions, useFocusEffect } from '@react-navigation/native';
-import LoadingScreen from '../loading';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { safeParseJSON } from '@/utils/jsonParser';
 
 export default function TabTwoScreen() {
   const [history, setHistory] = useState<Array<any>>([]);
@@ -55,11 +56,10 @@ export default function TabTwoScreen() {
   return (
     <GestureHandlerRootView>
       <SafeAreaView>
-        {/* {loading ?
-          <LoadingScreen /> : */}
         <ScrollView style={styles.scrollView}>
           {history?.map((hist: any, idx: number) => {
-            const parsedResult = JSON.parse(hist?.result);
+            const parsedResult = safeParseJSON(hist?.result, []);
+            if (!Array.isArray(parsedResult) || parsedResult.length === 0) return null;
 
             const ingredients = parsedResult
               .slice(0, 3)
@@ -68,7 +68,11 @@ export default function TabTwoScreen() {
               .substring(0, 70);
 
             return (
-              <TouchableOpacity key={idx} style={styles.historyTitle} onPress={() => handleSelectHistory(parsedResult)}>
+              <TouchableOpacity
+                key={idx}
+                style={styles.historyTitle}
+                onPress={() => handleSelectHistory(parsedResult)}
+              >
                 <ThemedText style={styles.sectionTitle}>
                   {ingredients}...
                 </ThemedText>
@@ -79,7 +83,6 @@ export default function TabTwoScreen() {
             );
           })}
         </ScrollView>
-        {/* } */}
       </SafeAreaView>
     </GestureHandlerRootView>
   );
